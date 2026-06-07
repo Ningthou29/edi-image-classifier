@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Forensics Detector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            padding: 35px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            background: #f0f2ff;
+            border-color: #764ba2;
+        }
+
+        .upload-area.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .preview-container {
+            margin-top: 25px;
+            text-align: center;
+            display: none;
+        }
+
+        #preview {
+            max-width: 100%;
+            max-height: 350px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 16px;
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result.authentic {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+
+        .result.edited {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+
+        .result-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .result-label {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .result-confidence {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .result-explanation {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .detail-item {
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .detail-value {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            margin-top: 30px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .info-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .feature-list {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .feature {
+            background: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Image Forensics Detector</h1>
+        <div class="subtitle">Detects digital manipulation using forensic analysis</div>
+        
+        <div class="upload-area" id="upload-area">
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">Click or drag & drop to upload</div>
+            <div class="upload-hint">Supports JPG, PNG, WEBP (Max 16MB)</div>
+            <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp">
+        </div>
+        
+        <div class="preview-container" id="preview-container">
+            <img id="preview" alt="Preview">
+            <br>
+            <button class="analyze-btn" id="analyze-btn">🔬 Analyze Image</button>
+        </div>
+        
+        <div id="result"></div>
+        
+        <div class="info-box">
+            <div class="info-title">🧠 How It Works</div>
+            <div>This tool analyzes your image using 4 forensic techniques:</div>
+            <div class="feature-list">
+                <span class="feature">📊 Error Level Analysis</span>
+                <span class="feature">🎲 Noise Pattern Detection</span>
+                <span class="feature">🔍 Edge Artifact Analysis</span>
+                <span class="feature">🎨 Color Consistency Check</span>
+            </div>
+            <div style="margin-top: 12px; font-size: 12px; color: #888;">
+                ⚡ Runs entirely on CPU | Results in ~1-2 seconds
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const previewContainer = document.getElementById('preview-container');
+        const preview = document.getElementById('preview');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const resultDiv = document.getElementById('result');
+        
+        let currentFile = null;
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleFile(file);
+            } else {
+                alert('Please upload an image file');
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        function handleFile(file) {
+            if (file.size > 16 * 1024 * 1024) {
+                alert('File too large! Maximum size is 16MB');
+                return;
+            }
+            
+            currentFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                previewContainer.style.display = 'block';
+                resultDiv.innerHTML = '';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        analyzeBtn.addEventListener('click', async () => {
+            if (!currentFile) return;
+            
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = '<div class="loading"></div> Analyzing...';
+            resultDiv.innerHTML = '';
+            
+            const formData = new FormData();
+            formData.append('image', currentFile);
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    displayError(result.error);
+                } else {
+                    displayResult(result);
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                displayError('Cannot connect to server. Make sure the app is running.');
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = '🔬 Analyze Image';
+            }
+        });
+        
+        function displayResult(result) {
+            const isAuthentic = result.label === 'AUTHENTIC';
+            const resultClass = isAuthentic ? 'authentic' : 'edited';
+            const icon = isAuthentic ? '✅' : '⚠️';
+            
+            let detailsHtml = '';
+            if (result.details) {
+                detailsHtml = `
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <div>📊 ELA</div>
+                            <div class="detail-value">${result.details.ela}%</div>
+                        </div>
+                        <div class="detail-item">
+                            <div>🎲 Noise</div>
+                            <div class="detail-value">${result.details.noise}%</div>
+                        </div>
+                        <div class="detail-item">
+                            <div>🔍 Edge</div>
+                            <div class="detail-value">${result.details.edge}%</div>
+                        </div>
+                        <div class="detail-item">
+                            <div>🎨 Color</div>
+                            <div class="detail-value">${result.details.color}%</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="result ${resultClass}" style="display: block;">
+                    <div class="result-icon">${icon}</div>
+                    <div class="result-label">${result.label}</div>
+                    <div class="result-confidence">${result.confidence}</div>
+                    <div class="result-explanation">${result.explanation || ''}</div>
+                    ${detailsHtml}
+                </div>
+            `;
+        }
+        
+        function displayError(message) {
+            resultDiv.innerHTML = `
+                <div class="result edited" style="display: block;">
+                    <div class="result-icon">❌</div>
+                    <div class="result-label">Error</div>
+                    <div class="result-explanation">${message}</div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
